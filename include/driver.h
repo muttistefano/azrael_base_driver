@@ -17,11 +17,27 @@
 #include <cmath>
 #include <pid.h>
 
+#include <iostream>
+#include <fstream>
+
+#include <stdio.h> 
+#include <stdlib.h> 
+#include <unistd.h> 
+#include <string.h> 
+#include <sys/types.h> 
+#include <sys/socket.h> 
+#include <arpa/inet.h> 
+#include <netinet/in.h> 
+
+std::ofstream myfile;
+  
+
+
 std::mutex mtx_enc1, mtx_enc2, mtx_enc3, mtx_enc4 ; 
 bool stopping_ = false;
 
-constexpr float radius    = 0.1;
-constexpr float lxy       = 0.71;
+constexpr double radius    = 0.1016;
+constexpr double lxy       = 0.71;
 
 double vx,vy,vw;
 
@@ -38,10 +54,10 @@ class azrael_mobile_driver
 
     double vel_enc1, vel_enc2, vel_enc3, vel_enc4  = 0.0;
 
-    PID pid_w1 = PID(15,150.0,0,0.005,&vel_enc1,&mtx_enc1);
-    PID pid_w2 = PID(15,150.0,0,0.005,&vel_enc2,&mtx_enc2);
-    PID pid_w3 = PID(15,150.0,0,0.005,&vel_enc3,&mtx_enc3);
-    PID pid_w4 = PID(15,150.0,0,0.005,&vel_enc4,&mtx_enc4);
+    PID pid_w1 = PID(15,100.0,0,0.032,&vel_enc1,&mtx_enc1);
+    PID pid_w2 = PID(15,100.0,0,0.032,&vel_enc2,&mtx_enc2);
+    PID pid_w3 = PID(15,100.0,0,0.032,&vel_enc3,&mtx_enc3);
+    PID pid_w4 = PID(15,100.0,0,0.032,&vel_enc4,&mtx_enc4);
 
 
     double velx_odom = 0.0;
@@ -62,6 +78,13 @@ class azrael_mobile_driver
     PhidgetEncoderHandle encoder2;
     PhidgetEncoderHandle encoder3;
 
+    //Socket
+    int sockfd; 
+    double buffer_in[3] = {0.0,0.0,0.0}; 
+    double buffer_out[4] = {0.0,0.0,0.0,0.0}; 
+    struct sockaddr_in     servaddr; 
+    
+
 
 public:
   
@@ -72,6 +95,7 @@ public:
     void setWheelsSpeed();
     void control_thread();
     void odometry();
+    void socket_feed();
 
     //   void safety_task();
 

@@ -2,14 +2,14 @@
 #define PINS_HH
 
 //PINS
-constexpr int PWM_dir_1 = 25;   
-constexpr int PWM_dir_2 = 24;   
+constexpr int PWM_dir_1 = 24;   
+constexpr int PWM_dir_2 = 25;   
 
 constexpr int PWM_dir_3 = 29;   
 constexpr int PWM_dir_4 = 28;   
 
-constexpr int PWM_pin_1 = 23;   
-constexpr int PWM_pin_2 = 22;   
+constexpr int PWM_pin_1 = 22;   
+constexpr int PWM_pin_2 = 23;   
 
 constexpr int PWM_pin_3 = 27;   
 constexpr int PWM_pin_4 = 26;   

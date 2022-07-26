@@ -3,6 +3,7 @@ project(azrael_mobile_driver)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 add_compile_options(-std=c++11)
+add_compile_definitions(DEBUG_PID)
 
 
 ## System dependencies are found with CMake's conventions
