@@ -28,10 +28,13 @@
 #include <sys/socket.h> 
 #include <arpa/inet.h> 
 #include <netinet/in.h> 
+#include "Iir.h"
+#include "random"
+#include "time.h"
 
 std::ofstream myfile;
   
-
+#define DEBUG_PID
 
 std::mutex mtx_enc1, mtx_enc2, mtx_enc3, mtx_enc4 ; 
 bool stopping_ = false;
@@ -53,12 +56,17 @@ class azrael_mobile_driver
     
 
     double vel_enc1, vel_enc2, vel_enc3, vel_enc4  = 0.0;
+    double vel_enc1_f, vel_enc2_f, vel_enc3_f, vel_enc4_f  = 0.0;
 
-    PID pid_w1 = PID(15,100.0,0,0.032,&vel_enc1,&mtx_enc1);
-    PID pid_w2 = PID(15,100.0,0,0.032,&vel_enc2,&mtx_enc2);
-    PID pid_w3 = PID(15,100.0,0,0.032,&vel_enc3,&mtx_enc3);
-    PID pid_w4 = PID(15,100.0,0,0.032,&vel_enc4,&mtx_enc4);
+    Iir::Butterworth::LowPass<2> f_vel_1;
+    Iir::Butterworth::LowPass<2> f_vel_2;
+    Iir::Butterworth::LowPass<2> f_vel_3;
+    Iir::Butterworth::LowPass<2> f_vel_4;
 
+    PID pid_w1 = PID(10,30.0,0.,0.001,&vel_enc1,&mtx_enc1);
+    PID pid_w2 = PID(10,30.0,0.,0.001,&vel_enc2,&mtx_enc2);
+    PID pid_w3 = PID(10,30.0,0.,0.001,&vel_enc3,&mtx_enc3);
+    PID pid_w4 = PID(10,30.0,0.,0.001,&vel_enc4,&mtx_enc4);
 
     double velx_odom = 0.0;
     double vely_odom = 0.0;

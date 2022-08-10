@@ -120,17 +120,34 @@ azrael_mobile_driver::azrael_mobile_driver()
     Phidget_openWaitForAttachment((PhidgetHandle)this->encoder2, 0);
     Phidget_openWaitForAttachment((PhidgetHandle)this->encoder3, 0);
 
+    PhidgetEncoder_setIOMode(this->encoder0,ENCODER_IO_MODE_OPEN_COLLECTOR_10K);
+    PhidgetEncoder_setIOMode(this->encoder1,ENCODER_IO_MODE_OPEN_COLLECTOR_10K);
+    PhidgetEncoder_setIOMode(this->encoder2,ENCODER_IO_MODE_OPEN_COLLECTOR_10K);
+    PhidgetEncoder_setIOMode(this->encoder3,ENCODER_IO_MODE_OPEN_COLLECTOR_10K);
+
+
     PhidgetEncoder_setPositionChangeTrigger(this->encoder0, 0);
     PhidgetEncoder_setPositionChangeTrigger(this->encoder1, 0);
     PhidgetEncoder_setPositionChangeTrigger(this->encoder2, 0);
     PhidgetEncoder_setPositionChangeTrigger(this->encoder3, 0);
 
-    int interval = 32;
+    int interval = 8;
 
     PhidgetEncoder_setDataInterval(this->encoder0, interval);
     PhidgetEncoder_setDataInterval(this->encoder1, interval);
     PhidgetEncoder_setDataInterval(this->encoder2, interval);
     PhidgetEncoder_setDataInterval(this->encoder3, interval);
+
+    //Filt encoder
+
+    // const float samplingrate = 31.25; // Hz
+    const float samplingrate = 1000; // Hz
+    const float cutoff_frequency = 20; // Hz
+    f_vel_1.setup (samplingrate, cutoff_frequency);
+    f_vel_2.setup (samplingrate, cutoff_frequency);
+    f_vel_3.setup (samplingrate, cutoff_frequency);
+    f_vel_4.setup (samplingrate, cutoff_frequency);
+
 
     //Socket
 
@@ -154,7 +171,15 @@ azrael_mobile_driver::azrael_mobile_driver()
 
 void azrael_mobile_driver::control_thread()
 {
-    double time_sin = 0.0;
+    srand (time(NULL));
+    double time_sin  = 0.0;
+    double time_save = 0.0;
+    int cnt = 0;
+
+    std::chrono::time_point<std::chrono::system_clock> init_time = std::chrono::system_clock::now();
+    std::chrono::time_point<std::chrono::system_clock> end_time  = std::chrono::system_clock::now();
+
+
     while(!stopping_)
     {   
 
@@ -166,10 +191,6 @@ void azrael_mobile_driver::control_thread()
         #endif
 
         #ifdef DEBUG_PID
-        double vy = 0.2 * sin(0.1 * M_PI * time_sin);
-        time_sin = time_sin + 0.032;
-        double vx = 0;//sin*(0.2 * M_PI + t);
-        double vw = 0;//sin*(0.2 * M_PI + t);
 
         double v1in = ( vx - vy - (lxy * vw)) * (1.0/radius);
         double v2in = (-vx - vy + (lxy * vw)) * (1.0/radius);
@@ -182,6 +203,19 @@ void azrael_mobile_driver::control_thread()
         this->pid_w3.setSetpoint(abs(v3in));
         this->pid_w4.setSetpoint(abs(v4in));
 
+        // mtx_enc1.lock();
+        // this->vel_enc1_f = this->f_vel_1.filter(this->vel_enc1);
+        // mtx_enc1.unlock();
+        // mtx_enc2.lock();
+        // this->vel_enc2_f = this->f_vel_2.filter(this->vel_enc2);
+        // mtx_enc2.unlock();
+        // mtx_enc3.lock();
+        // this->vel_enc3_f = this->f_vel_3.filter(this->vel_enc3);
+        // mtx_enc3.unlock();
+        // mtx_enc4.lock();
+        // this->vel_enc4_f = this->f_vel_4.filter(this->vel_enc4);
+        // mtx_enc4.unlock();
+
         int v1dir = (v1in < 0) ? LOW  : HIGH;
         int v2dir = (v2in < 0) ? HIGH : LOW;
         int v3dir = (v3in < 0) ? HIGH : LOW;
@@ -193,22 +227,70 @@ void azrael_mobile_driver::control_thread()
         digitalWrite(PWM_dir_3,v3dir);
         digitalWrite(PWM_dir_4,v4dir);
 
-        int pwm1 = (int)pid_w1.update_state();
-        int pwm2 = (int)pid_w2.update_state();
-        int pwm3 = (int)pid_w3.update_state();
-        int pwm4 = (int)pid_w4.update_state();
+        // int pwm1 = (int)pid_w1.update_state();
+        // int pwm2 = (int)pid_w2.update_state();
+        // int pwm3 = (int)pid_w3.update_state();
+        // int pwm4 = (int)pid_w4.update_state();
 
-        #ifdef DEBUG_PID
-        myfile << pwm1 << "," << pwm2 << "," << pwm3 << "," << pwm4 << "," 
-               << this->vel_enc1 << "," << this->vel_enc2 << "," << this->vel_enc3 << "," << this->vel_enc4 << "," 
-               << v1in << "," << v2in << "," << v3in << "," << v4in << "\n";
-        #endif
+        int pwm1 = 0;
+        int pwm2 = 0;
+        int pwm3 = 0;
+        int pwm4 = 0;
+
+        if(time_sin < 1)
+        {
+            pwm1 = 0; //- (int)(0.5*time_sin);
+            pwm2 = 0; //- (int)(0.5*time_sin);
+            pwm3 = 0; //- (int)(0.5*time_sin);
+            pwm4 = 0; //- (int)(0.5*time_sin);
+        }
+        else if(time_sin > 1 && time_sin< 4)
+        {
+            pwm1 = vy; //- (int)(0.5*time_sin);
+            pwm2 = vy; //- (int)(0.5*time_sin);
+            pwm3 = vy; //- (int)(0.5*time_sin);
+            pwm4 = vy; //- (int)(0.5*time_sin);
+        }
+        else if( time_sin > 4 && time_sin < 6)
+        {
+            pwm1 = 0;
+            pwm2 = 0;
+            pwm3 = 0;
+            pwm4 = 0;
+        }
+        else
+        {
+            std::cout << "getting out " << time_sin << "\n";
+            exit(3);
+        }
+
+        // cnt = (int)time_sin;
 
         softPwmWrite (PWM_pin_1,  pwm1) ;	
         softPwmWrite (PWM_pin_2,  pwm2) ;
         softPwmWrite (PWM_pin_3,  pwm3) ;
         softPwmWrite (PWM_pin_4,  pwm4) ;
-        std::this_thread::sleep_for(std::chrono::milliseconds(32));
+
+        end_time  = std::chrono::system_clock::now();
+        
+        time_sin = time_sin + (std::chrono::duration_cast<std::chrono::microseconds>(end_time - init_time).count() * 1e-6);
+
+        auto micros = 1000 - std::chrono::duration_cast<std::chrono::microseconds>(end_time - init_time).count();
+        if(micros > 0)
+        {
+            std::this_thread::sleep_for(std::chrono::microseconds(micros));
+        }
+
+        #ifdef DEBUG_PID
+        auto p1 = std::chrono::system_clock::now();
+
+        myfile << pwm1 << "," << pwm2 << "," << pwm3 << "," << pwm4 << "," 
+               << this->vel_enc1   << "," << this->vel_enc2   << "," << this->vel_enc3   << "," << this->vel_enc4   << "," 
+            //    << this->vel_enc1_f << "," << this->vel_enc2_f << "," << this->vel_enc3_f << "," << this->vel_enc4_f << "," 
+               << v1in << "," << v2in << "," << v3in << "," << v4in << "," << std::chrono::duration_cast<std::chrono::microseconds>(p1.time_since_epoch()).count() << "\n";
+        #endif
+
+        init_time = end_time;
     }
 }
 
@@ -268,7 +350,7 @@ int main(int argc, char **argv)
     myfile.open ("log.txt");
     #endif
 
-    // vx = atof(argv[1]);
+     vy = atoi(argv[1]);
     // vy = atof(argv[2]);
     // vw = atof(argv[3]);
 
@@ -300,9 +382,9 @@ int main(int argc, char **argv)
     pthread_getschedparam(control_t.native_handle(), &policy, &sch);
     sch.sched_priority = 80;
 
-    pthread_setschedparam(control_t.native_handle(), SCHED_RR, &sch);
+    pthread_setschedparam(control_t.native_handle(), SCHED_FIFO, &sch);
     // pthread_setschedparam(odom_t.native_handle(), SCHED_RR, &sch);
-    pthread_setschedparam(sock_t.native_handle(), SCHED_RR, &sch);
+    pthread_setschedparam(sock_t.native_handle(), SCHED_FIFO, &sch);
     
 
 
