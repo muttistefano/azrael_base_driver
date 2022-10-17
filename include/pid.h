@@ -1,6 +1,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+// constexpr int ffw    = 0;
+constexpr int ffw    = 14;
 
 
 class PID {
@@ -26,7 +28,7 @@ class PID {
             double derivative = (ef - old_ef) / Ts;
             double new_integral = integral + error * Ts;
 
-            double control_u =  (14 * setpoint) +  kp * error + ki * integral + kd * derivative;
+            double control_u =  (ffw * setpoint) +  kp * error + ki * integral + kd * derivative;
 
             // Clamp the output
             if (control_u > max_output)
@@ -42,13 +44,11 @@ class PID {
                 integral = new_integral;
             }
             old_ef = ef;
-            
-            control_u = (14 * setpoint) + control_u;
 
             if (control_u < 0)
             {
-                std::cout << "FORCING CONTROL TO 0 from  " << (14 * setpoint) << " " << control_u << "\n";
-                control_u = (14 * setpoint);
+                std::cout << "FORCING CONTROL TO 0 from  " << (ffw * setpoint) << " " << control_u << "\n";
+                control_u = (ffw * setpoint);
             }
 
             return control_u;

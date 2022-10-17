@@ -18,6 +18,14 @@ void my_handler(int signum){
     softPwmStop   (PWM_pin_2) ;
     softPwmStop   (PWM_pin_3) ;
     softPwmStop   (PWM_pin_4) ;
+    pinMode(PWM_pin_1,OUTPUT);
+    pinMode(PWM_pin_2,OUTPUT);
+    pinMode(PWM_pin_3,OUTPUT);
+    pinMode(PWM_pin_4,OUTPUT);
+    digitalWrite(PWM_pin_1,0);
+    digitalWrite(PWM_pin_2,0);
+    digitalWrite(PWM_pin_3,0);
+    digitalWrite(PWM_pin_4,0);
     delete(mobile_robot_driver);
 }
 
@@ -142,7 +150,7 @@ azrael_mobile_driver::azrael_mobile_driver()
 
     // const float samplingrate = 31.25; // Hz
     const float samplingrate = 1000; // Hz
-    const float cutoff_frequency = 20; // Hz
+    const float cutoff_frequency = 30; // Hz
     f_vel_1.setup (samplingrate, cutoff_frequency);
     f_vel_2.setup (samplingrate, cutoff_frequency);
     f_vel_3.setup (samplingrate, cutoff_frequency);
@@ -183,90 +191,107 @@ void azrael_mobile_driver::control_thread()
     while(!stopping_)
     {   
 
-        #ifndef DEBUG_PID        
-        double v1in = ( buffer_in[0] - buffer_in[1] - (lxy * buffer_in[2])) * (1.0/radius);
-        double v2in = (-buffer_in[0] - buffer_in[1] + (lxy * buffer_in[2])) * (1.0/radius);
-        double v3in = ( buffer_in[0] - buffer_in[1] + (lxy * buffer_in[2])) * (1.0/radius);
-        double v4in = (-buffer_in[0] - buffer_in[1] - (lxy * buffer_in[2])) * (1.0/radius);
-        #endif
+        // #ifndef DEBUG_PID        
+         double v1in = ( buffer_in[0] - buffer_in[1] - (lxy * buffer_in[2])) * (1.0/radius);
+         double v2in = (-buffer_in[0] - buffer_in[1] + (lxy * buffer_in[2])) * (1.0/radius);
+         double v3in = ( buffer_in[0] - buffer_in[1] + (lxy * buffer_in[2])) * (1.0/radius);
+         double v4in = (-buffer_in[0] - buffer_in[1] - (lxy * buffer_in[2])) * (1.0/radius);
+        // #endif
 
-        #ifdef DEBUG_PID
+        //#ifdef DEBUG_PID
 
-        double v1in = ( vx - vy - (lxy * vw)) * (1.0/radius);
-        double v2in = (-vx - vy + (lxy * vw)) * (1.0/radius);
-        double v3in = ( vx - vy + (lxy * vw)) * (1.0/radius);
-        double v4in = (-vx - vy - (lxy * vw)) * (1.0/radius);
-        #endif
+        //double v1in = ( vx - vy - (lxy * vw)) * (1.0/radius);
+        //double v2in = (-vx - vy + (lxy * vw)) * (1.0/radius);
+        //double v3in = ( vx - vy + (lxy * vw)) * (1.0/radius);
+        //double v4in = (-vx - vy - (lxy * vw)) * (1.0/radius);
+        //#endif
+
+        //double v1in = ( vx - vy + (lxy * vw)) * (1.0/radius);
+        //double v2in = (-vx - vy - (lxy * vw)) * (1.0/radius);
+        //double v3in = ( vx - vy - (lxy * vw)) * (1.0/radius);
+        //double v4in = (-vx - vy + (lxy * vw)) * (1.0/radius);
 
         this->pid_w1.setSetpoint(abs(v1in));
         this->pid_w2.setSetpoint(abs(v2in));
         this->pid_w3.setSetpoint(abs(v3in));
         this->pid_w4.setSetpoint(abs(v4in));
 
-        // mtx_enc1.lock();
-        // this->vel_enc1_f = this->f_vel_1.filter(this->vel_enc1);
-        // mtx_enc1.unlock();
-        // mtx_enc2.lock();
-        // this->vel_enc2_f = this->f_vel_2.filter(this->vel_enc2);
-        // mtx_enc2.unlock();
-        // mtx_enc3.lock();
-        // this->vel_enc3_f = this->f_vel_3.filter(this->vel_enc3);
-        // mtx_enc3.unlock();
-        // mtx_enc4.lock();
-        // this->vel_enc4_f = this->f_vel_4.filter(this->vel_enc4);
-        // mtx_enc4.unlock();
+        mtx_enc1.lock();
+        this->vel_enc1_f = this->f_vel_1.filter(this->vel_enc1);
+        mtx_enc1.unlock();
+        mtx_enc2.lock();
+        this->vel_enc2_f = this->f_vel_2.filter(this->vel_enc2);
+        mtx_enc2.unlock();
+        mtx_enc3.lock();
+        this->vel_enc3_f = this->f_vel_3.filter(this->vel_enc3);
+        mtx_enc3.unlock();
+        mtx_enc4.lock();
+        this->vel_enc4_f = this->f_vel_4.filter(this->vel_enc4);
+        mtx_enc4.unlock();
 
-        int v1dir = (v1in < 0) ? LOW  : HIGH;
-        int v2dir = (v2in < 0) ? HIGH : LOW;
-        int v3dir = (v3in < 0) ? HIGH : LOW;
-        int v4dir = (v4in < 0) ? LOW  : HIGH;
+        //int v1dir = (v1in < 0) ? LOW  : HIGH;
+        //int v2dir = (v2in < 0) ? HIGH : LOW;
+        //int v3dir = (v3in < 0) ? HIGH : LOW;
+        //int v4dir = (v4in < 0) ? LOW  : HIGH;
         
+        int v1dir = (v1in < 0) ? HIGH : LOW;
+        int v2dir = (v2in < 0) ? LOW : HIGH;
+        int v3dir = (v3in < 0) ? LOW : HIGH;
+        int v4dir = (v4in < 0) ? HIGH : LOW;
+
         //TODO tristate assign
         digitalWrite(PWM_dir_1,v1dir);
         digitalWrite(PWM_dir_2,v2dir);
         digitalWrite(PWM_dir_3,v3dir);
         digitalWrite(PWM_dir_4,v4dir);
 
-        // int pwm1 = (int)pid_w1.update_state();
-        // int pwm2 = (int)pid_w2.update_state();
-        // int pwm3 = (int)pid_w3.update_state();
-        // int pwm4 = (int)pid_w4.update_state();
+        int pwm1 = (int)pid_w1.update_state();
+        int pwm2 = (int)pid_w2.update_state();
+        int pwm3 = (int)pid_w3.update_state();
+        int pwm4 = (int)pid_w4.update_state();
 
-        int pwm1 = 0;
-        int pwm2 = 0;
-        int pwm3 = 0;
-        int pwm4 = 0;
+        // int pwm1 = 0;
+        // int pwm2 = 0;
+        // int pwm3 = 0;
+        // int pwm4 = 0;
 
-        if(time_sin < 1)
-        {
-            pwm1 = 0; //- (int)(0.5*time_sin);
-            pwm2 = 0; //- (int)(0.5*time_sin);
-            pwm3 = 0; //- (int)(0.5*time_sin);
-            pwm4 = 0; //- (int)(0.5*time_sin);
-        }
-        else if(time_sin > 1 && time_sin< 4)
-        {
-            pwm1 = vy; //- (int)(0.5*time_sin);
-            pwm2 = vy; //- (int)(0.5*time_sin);
-            pwm3 = vy; //- (int)(0.5*time_sin);
-            pwm4 = vy; //- (int)(0.5*time_sin);
-        }
-        else if( time_sin > 4 && time_sin < 6)
-        {
-            pwm1 = 0;
-            pwm2 = 0;
-            pwm3 = 0;
-            pwm4 = 0;
-        }
-        else
-        {
-            std::cout << "getting out " << time_sin << "\n";
-            exit(3);
-        }
+        // if(time_sin < 1)
+        // {
+        //     pwm1 = 0; //- (int)(0.5*time_sin);
+        //     pwm2 = 0; //- (int)(0.5*time_sin);
+        //     pwm3 = 0; //- (int)(0.5*time_sin);
+        //     pwm4 = 0; //- (int)(0.5*time_sin);
+        // }
+        // else if(time_sin > 1 && time_sin< 4)
+        // {
+        //     pwm1 = vy; //- (int)(0.5*time_sin);
+        //     pwm2 = vy; //- (int)(0.5*time_sin);
+        //     pwm3 = vy; //- (int)(0.5*time_sin);
+        //     pwm4 = vy; //- (int)(0.5*time_sin);
+        // }
+        // else if( time_sin > 4 && time_sin < 6)
+        // {
+        //     pwm1 = 0;
+        //     pwm2 = 0;
+        //     pwm3 = 0;
+        //     pwm4 = 0;
+        // }
+        // else
+        // {
+        //     std::cout << "getting out " << time_sin << "\n";
+        //     exit(3);
+        // }
 
         // cnt = (int)time_sin;
 
-        softPwmWrite (PWM_pin_1,  pwm1) ;	
+        //std::cout << "\n"  << "\n" << "\n" ;
+        //std::cout << v1in  << " " << v2in << " " << v3in << " " << v4in << "\n" ;
+        //std::cout << this->vel_enc1  << " " << this->vel_enc2 << " " << this->vel_enc3 << " " << this->vel_enc4 << "\n" ;
+        //std::cout << this->vel_enc1_f  << " " << this->vel_enc2_f << " " << this->vel_enc3_f << " " << this->vel_enc4_f << "\n" ;
+        //std::cout << v1dir  << " " << v2dir << " " << v3dir << " " << v4dir << "\n" ;
+        //std::cout << pwm1  << " " << pwm2 << " " << pwm3 << " " << pwm4 << "\n" ;
+
+        softPwmWrite (PWM_pin_1,  pwm1) ;
         softPwmWrite (PWM_pin_2,  pwm2) ;
         softPwmWrite (PWM_pin_3,  pwm3) ;
         softPwmWrite (PWM_pin_4,  pwm4) ;
@@ -304,7 +329,7 @@ void azrael_mobile_driver::odometry()
         last_time = current_time;
         current_time = std::chrono::high_resolution_clock::now();
 
-        double dt = std::chrono::duration_cast<std::chrono::nanoseconds>(last_time-current_time).count() / 1e-9;
+        double dt = std::chrono::duration_cast<std::chrono::nanoseconds>(current_time-last_time).count() / 1e9;
         mtx_enc1.lock();
         mtx_enc2.lock();
         mtx_enc3.lock();
@@ -334,7 +359,12 @@ void azrael_mobile_driver::socket_feed()
     while(!stopping_)
     {
         // std::cout << "SENDING \n";
+	buffer_out[0] = this->vel_enc1;
+	buffer_out[1] = this->vel_enc2;
+	buffer_out[2] = this->vel_enc3;
+	buffer_out[3] = this->vel_enc4;
         sendto(this->sockfd, (const void *)buffer_out, sizeof(double) * 4, MSG_DONTWAIT, (const struct sockaddr *) &servaddr, sizeof(servaddr)); 
+         //std::cout << "rec: " << buffer_out[0] << " " << buffer_out[1] << " " << buffer_out[2] << "\n";
         // std::cout << "RECEIVING \n";
         n = recvfrom(this->sockfd, (void *)buffer_in, sizeof(double) * 3, MSG_DONTWAIT, (struct sockaddr *) &servaddr, &len); 
         // std::cout << "rec: " << buffer_in[0] << " " << buffer_in[1] << " " << buffer_in[2] << "\n";
@@ -350,9 +380,9 @@ int main(int argc, char **argv)
     myfile.open ("log.txt");
     #endif
 
-     vy = atoi(argv[1]);
-    // vy = atof(argv[2]);
-    // vw = atof(argv[3]);
+    //vx = atof(argv[1]);
+    //vy = atof(argv[2]);
+    //vw = atof(argv[3]);
 
     /* Lock memory */
     if(mlockall(MCL_CURRENT|MCL_FUTURE) == -1) {

@@ -34,13 +34,14 @@
 
 std::ofstream myfile;
   
-#define DEBUG_PID
+// #define DEBUG_PID
 
 std::mutex mtx_enc1, mtx_enc2, mtx_enc3, mtx_enc4 ; 
 bool stopping_ = false;
 
 constexpr double radius    = 0.1016;
 constexpr double lxy       = 0.71;
+// constexpr double lxy       = -0.11;
 
 double vx,vy,vw;
 
@@ -63,10 +64,15 @@ class azrael_mobile_driver
     Iir::Butterworth::LowPass<2> f_vel_3;
     Iir::Butterworth::LowPass<2> f_vel_4;
 
-    PID pid_w1 = PID(10,30.0,0.,0.001,&vel_enc1,&mtx_enc1);
-    PID pid_w2 = PID(10,30.0,0.,0.001,&vel_enc2,&mtx_enc2);
-    PID pid_w3 = PID(10,30.0,0.,0.001,&vel_enc3,&mtx_enc3);
-    PID pid_w4 = PID(10,30.0,0.,0.001,&vel_enc4,&mtx_enc4);
+    // PID pid_w1 = PID(5,30.0,0.,0.001,&vel_enc1,&mtx_enc1);
+    // PID pid_w2 = PID(5,30.0,0.,0.001,&vel_enc2,&mtx_enc2);
+    // PID pid_w3 = PID(5,30.0,0.,0.001,&vel_enc3,&mtx_enc3);
+    // PID pid_w4 = PID(5,30.0,0.,0.001,&vel_enc4,&mtx_enc4);
+
+    PID pid_w1 = PID(10,5.0,0.,0.001,&vel_enc1_f,&mtx_enc1);
+    PID pid_w2 = PID(10,5.0,0.,0.001,&vel_enc2_f,&mtx_enc2);
+    PID pid_w3 = PID(10,5.0,0.,0.001,&vel_enc3_f,&mtx_enc3);
+    PID pid_w4 = PID(10,5.0,0.,0.001,&vel_enc4_f,&mtx_enc4);
 
     double velx_odom = 0.0;
     double vely_odom = 0.0;
