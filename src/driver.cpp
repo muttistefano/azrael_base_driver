@@ -149,7 +149,7 @@ azrael_mobile_driver::azrael_mobile_driver()
     //Filt encoder
 
     // const float samplingrate = 31.25; // Hz
-    const float samplingrate = 1000; // Hz
+    const float samplingrate = 500; // Hz
     const float cutoff_frequency = 30; // Hz
     f_vel_1.setup (samplingrate, cutoff_frequency);
     f_vel_2.setup (samplingrate, cutoff_frequency);
@@ -191,25 +191,12 @@ void azrael_mobile_driver::control_thread()
     while(!stopping_)
     {   
 
-        // #ifndef DEBUG_PID        
-         double v1in = ( buffer_in[0] - buffer_in[1] - (lxy * buffer_in[2])) * (1.0/radius);
-         double v2in = (-buffer_in[0] - buffer_in[1] + (lxy * buffer_in[2])) * (1.0/radius);
-         double v3in = ( buffer_in[0] - buffer_in[1] + (lxy * buffer_in[2])) * (1.0/radius);
-         double v4in = (-buffer_in[0] - buffer_in[1] - (lxy * buffer_in[2])) * (1.0/radius);
-        // #endif
+       
+        double v1in = ( buffer_in[0] - buffer_in[1] - (lxy * buffer_in[2])) * (1.0/radius);
+        double v2in = (-buffer_in[0] - buffer_in[1] + (lxy * buffer_in[2])) * (1.0/radius);
+        double v3in = ( buffer_in[0] - buffer_in[1] + (lxy * buffer_in[2])) * (1.0/radius);
+        double v4in = (-buffer_in[0] - buffer_in[1] - (lxy * buffer_in[2])) * (1.0/radius);
 
-        //#ifdef DEBUG_PID
-
-        //double v1in = ( vx - vy - (lxy * vw)) * (1.0/radius);
-        //double v2in = (-vx - vy + (lxy * vw)) * (1.0/radius);
-        //double v3in = ( vx - vy + (lxy * vw)) * (1.0/radius);
-        //double v4in = (-vx - vy - (lxy * vw)) * (1.0/radius);
-        //#endif
-
-        //double v1in = ( vx - vy + (lxy * vw)) * (1.0/radius);
-        //double v2in = (-vx - vy - (lxy * vw)) * (1.0/radius);
-        //double v3in = ( vx - vy - (lxy * vw)) * (1.0/radius);
-        //double v4in = (-vx - vy + (lxy * vw)) * (1.0/radius);
 
         this->pid_w1.setSetpoint(abs(v1in));
         this->pid_w2.setSetpoint(abs(v2in));
@@ -228,11 +215,6 @@ void azrael_mobile_driver::control_thread()
         mtx_enc4.lock();
         this->vel_enc4_f = this->f_vel_4.filter(this->vel_enc4);
         mtx_enc4.unlock();
-
-        //int v1dir = (v1in < 0) ? LOW  : HIGH;
-        //int v2dir = (v2in < 0) ? HIGH : LOW;
-        //int v3dir = (v3in < 0) ? HIGH : LOW;
-        //int v4dir = (v4in < 0) ? LOW  : HIGH;
         
         int v1dir = (v1in < 0) ? HIGH : LOW;
         int v2dir = (v2in < 0) ? LOW : HIGH;
@@ -250,47 +232,6 @@ void azrael_mobile_driver::control_thread()
         int pwm3 = (int)pid_w3.update_state();
         int pwm4 = (int)pid_w4.update_state();
 
-        // int pwm1 = 0;
-        // int pwm2 = 0;
-        // int pwm3 = 0;
-        // int pwm4 = 0;
-
-        // if(time_sin < 1)
-        // {
-        //     pwm1 = 0; //- (int)(0.5*time_sin);
-        //     pwm2 = 0; //- (int)(0.5*time_sin);
-        //     pwm3 = 0; //- (int)(0.5*time_sin);
-        //     pwm4 = 0; //- (int)(0.5*time_sin);
-        // }
-        // else if(time_sin > 1 && time_sin< 4)
-        // {
-        //     pwm1 = vy; //- (int)(0.5*time_sin);
-        //     pwm2 = vy; //- (int)(0.5*time_sin);
-        //     pwm3 = vy; //- (int)(0.5*time_sin);
-        //     pwm4 = vy; //- (int)(0.5*time_sin);
-        // }
-        // else if( time_sin > 4 && time_sin < 6)
-        // {
-        //     pwm1 = 0;
-        //     pwm2 = 0;
-        //     pwm3 = 0;
-        //     pwm4 = 0;
-        // }
-        // else
-        // {
-        //     std::cout << "getting out " << time_sin << "\n";
-        //     exit(3);
-        // }
-
-        // cnt = (int)time_sin;
-
-        //std::cout << "\n"  << "\n" << "\n" ;
-        //std::cout << v1in  << " " << v2in << " " << v3in << " " << v4in << "\n" ;
-        //std::cout << this->vel_enc1  << " " << this->vel_enc2 << " " << this->vel_enc3 << " " << this->vel_enc4 << "\n" ;
-        //std::cout << this->vel_enc1_f  << " " << this->vel_enc2_f << " " << this->vel_enc3_f << " " << this->vel_enc4_f << "\n" ;
-        //std::cout << v1dir  << " " << v2dir << " " << v3dir << " " << v4dir << "\n" ;
-        //std::cout << pwm1  << " " << pwm2 << " " << pwm3 << " " << pwm4 << "\n" ;
-
         softPwmWrite (PWM_pin_1,  pwm1) ;
         softPwmWrite (PWM_pin_2,  pwm2) ;
         softPwmWrite (PWM_pin_3,  pwm3) ;
@@ -298,22 +239,22 @@ void azrael_mobile_driver::control_thread()
 
         end_time  = std::chrono::system_clock::now();
         
-        time_sin = time_sin + (std::chrono::duration_cast<std::chrono::microseconds>(end_time - init_time).count() * 1e-6);
+        // time_sin = time_sin + (std::chrono::duration_cast<std::chrono::microseconds>(end_time - init_time).count() * 1e-6);
 
-        auto micros = 1000 - std::chrono::duration_cast<std::chrono::microseconds>(end_time - init_time).count();
+        auto micros = 2000 - std::chrono::duration_cast<std::chrono::microseconds>(end_time - init_time).count();
         if(micros > 0)
         {
             std::this_thread::sleep_for(std::chrono::microseconds(micros));
         }
 
-        #ifdef DEBUG_PID
-        auto p1 = std::chrono::system_clock::now();
+        // #ifdef DEBUG_PID
+        // auto p1 = std::chrono::system_clock::now();
 
-        myfile << pwm1 << "," << pwm2 << "," << pwm3 << "," << pwm4 << "," 
-               << this->vel_enc1   << "," << this->vel_enc2   << "," << this->vel_enc3   << "," << this->vel_enc4   << "," 
-            //    << this->vel_enc1_f << "," << this->vel_enc2_f << "," << this->vel_enc3_f << "," << this->vel_enc4_f << "," 
-               << v1in << "," << v2in << "," << v3in << "," << v4in << "," << std::chrono::duration_cast<std::chrono::microseconds>(p1.time_since_epoch()).count() << "\n";
-        #endif
+        // myfile << pwm1 << "," << pwm2 << "," << pwm3 << "," << pwm4 << "," 
+        //        << this->vel_enc1   << "," << this->vel_enc2   << "," << this->vel_enc3   << "," << this->vel_enc4   << "," 
+        //     //    << this->vel_enc1_f << "," << this->vel_enc2_f << "," << this->vel_enc3_f << "," << this->vel_enc4_f << "," 
+        //        << v1in << "," << v2in << "," << v3in << "," << v4in << "," << std::chrono::duration_cast<std::chrono::microseconds>(p1.time_since_epoch()).count() << "\n";
+        // #endif
 
         init_time = end_time;
     }
@@ -356,6 +297,9 @@ void azrael_mobile_driver::socket_feed()
 {
     int n; 
     unsigned int len;
+    std::chrono::time_point<std::chrono::system_clock> init_time_udp = std::chrono::system_clock::now();
+    std::chrono::time_point<std::chrono::system_clock> end_time_udp  = std::chrono::system_clock::now();
+
     while(!stopping_)
     {
         // std::cout << "SENDING \n";
@@ -363,12 +307,24 @@ void azrael_mobile_driver::socket_feed()
 	buffer_out[1] = this->vel_enc2;
 	buffer_out[2] = this->vel_enc3;
 	buffer_out[3] = this->vel_enc4;
-        sendto(this->sockfd, (const void *)buffer_out, sizeof(double) * 4, MSG_DONTWAIT, (const struct sockaddr *) &servaddr, sizeof(servaddr)); 
-         //std::cout << "rec: " << buffer_out[0] << " " << buffer_out[1] << " " << buffer_out[2] << "\n";
-        // std::cout << "RECEIVING \n";
-        n = recvfrom(this->sockfd, (void *)buffer_in, sizeof(double) * 3, MSG_DONTWAIT, (struct sockaddr *) &servaddr, &len); 
-        // std::cout << "rec: " << buffer_in[0] << " " << buffer_in[1] << " " << buffer_in[2] << "\n";
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    sendto(this->sockfd, (const void *)buffer_out, sizeof(double) * 4, MSG_DONTWAIT, (const struct sockaddr *) &servaddr, sizeof(servaddr)); 
+    // std::cout << "rec: " << buffer_out[0] << " " << buffer_out[1] << " " << buffer_out[2] << "\n";
+    // std::cout << "RECEIVING \n";
+    n = recvfrom(this->sockfd, (void *)buffer_in, sizeof(double) * 3, MSG_DONTWAIT, (struct sockaddr *) &servaddr, &len); 
+    // std::cout << "rec: " << buffer_in[0] << " " << buffer_in[1] << " " << buffer_in[2] << "\n";
+    // std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+    end_time_udp  = std::chrono::system_clock::now();
+    auto micros = 10000 - std::chrono::duration_cast<std::chrono::microseconds>(end_time_udp - init_time_udp).count();
+    if(micros > 0)
+    {
+        std::this_thread::sleep_for(std::chrono::microseconds(micros));
+    }
+    // else
+    // {
+    //     std::cout << "cannot 200hz udp\n";
+    // }
+    init_time_udp = end_time_udp;
     }
 }
 
