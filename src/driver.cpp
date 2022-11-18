@@ -232,6 +232,8 @@ void azrael_mobile_driver::control_thread()
         int pwm3 = (int)pid_w3.update_state();
         int pwm4 = (int)pid_w4.update_state();
 
+        // std::cout << pwm1 << "," << pwm2 << "," << pwm3 << "," << pwm4 << "\n";
+
         softPwmWrite (PWM_pin_1,  pwm1) ;
         softPwmWrite (PWM_pin_2,  pwm2) ;
         softPwmWrite (PWM_pin_3,  pwm3) ;
@@ -315,15 +317,11 @@ void azrael_mobile_driver::socket_feed()
     // std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
     end_time_udp  = std::chrono::system_clock::now();
-    auto micros = 10000 - std::chrono::duration_cast<std::chrono::microseconds>(end_time_udp - init_time_udp).count();
+    auto micros = 20000 - std::chrono::duration_cast<std::chrono::microseconds>(end_time_udp - init_time_udp).count();
     if(micros > 0)
     {
         std::this_thread::sleep_for(std::chrono::microseconds(micros));
     }
-    // else
-    // {
-    //     std::cout << "cannot 200hz udp\n";
-    // }
     init_time_udp = end_time_udp;
     }
 }
