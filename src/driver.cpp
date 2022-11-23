@@ -26,13 +26,14 @@ void my_handler(int signum){
     digitalWrite(PWM_pin_2,0);
     digitalWrite(PWM_pin_3,0);
     digitalWrite(PWM_pin_4,0);
+    // socket->close();
     delete(mobile_robot_driver);
 }
 
 static void CCONV onEncoder0_PositionChange(PhidgetEncoderHandle ch, void * ctx, int positionChange, double timeChange, int indexTriggered) {
     if (std::isnan((double)positionChange/timeChange))
     {
-        std::cout <<"PD1";
+        std::cout <<"PD0";
         return;
     } 
     mtx_enc1.lock();
@@ -43,7 +44,7 @@ static void CCONV onEncoder0_PositionChange(PhidgetEncoderHandle ch, void * ctx,
 static void CCONV onEncoder1_PositionChange(PhidgetEncoderHandle ch, void * ctx, int positionChange, double timeChange, int indexTriggered) {
     if (std::isnan((double)positionChange/timeChange))
     {
-        std::cout <<"PD2";
+        std::cout <<"PD1";
         return;
     } 
     mtx_enc2.lock();
@@ -65,7 +66,7 @@ static void CCONV onEncoder2_PositionChange(PhidgetEncoderHandle ch, void * ctx,
 static void CCONV onEncoder3_PositionChange(PhidgetEncoderHandle ch, void * ctx, int positionChange, double timeChange, int indexTriggered) {
     if (std::isnan((double)positionChange/timeChange))
     {
-        std::cout <<"PD2";
+        std::cout <<"PD3";
         return;
     } 
     mtx_enc4.lock();
@@ -79,7 +80,7 @@ azrael_mobile_driver::~azrael_mobile_driver()
     #ifdef DEBUG_PID
     myfile.close();
     #endif
-    close(this->sockfd); 
+    // close(this->sockfd); 
 
     Phidget_close((PhidgetHandle)this->encoder0);
 	PhidgetEncoder_delete(&this->encoder0);
@@ -159,23 +160,28 @@ azrael_mobile_driver::azrael_mobile_driver()
 
     //Socket
 
-    if ( (sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) { 
-        perror("socket creation failed"); 
-        exit(EXIT_FAILURE); 
-    } 
+    // if ( (sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) { 
+    //     perror("socket creation failed"); 
+    //     exit(EXIT_FAILURE); 
+    // } 
 
-    memset(&servaddr, 0, sizeof(servaddr)); 
+    // memset(&servaddr, 0, sizeof(servaddr)); 
         
-    // Filling server information 
-    this->servaddr.sin_family = AF_INET; 
-    this->servaddr.sin_port = htons(44100); 
-    this->servaddr.sin_addr.s_addr = inet_addr("192.169.1.2");
+    // // Filling server information 
+    // this->servaddr.sin_family = AF_INET; 
+    // this->servaddr.sin_port = htons(44100); 
+    // this->servaddr.sin_addr.s_addr = inet_addr("192.169.1.2");
 
+    socket = new udp::socket(io_context);
+    remote_endpoint = udp::endpoint(address::from_string(IPADDRESS_REMOTE), UDP_PORT);
+    local_endpoint = udp::endpoint(address::from_string(IPADDRESS_LOCAL), UDP_PORT);
+    socket->open(udp::v4());
+    socket->bind(local_endpoint);
+    io_context.run();
 
     std::cout << "Constructor End\n";
 
 }
-
 
 void azrael_mobile_driver::control_thread()
 {
@@ -191,35 +197,41 @@ void azrael_mobile_driver::control_thread()
     while(!stopping_)
     {   
 
-       
-        double v1in = ( buffer_in[0] - buffer_in[1] - (lxy * buffer_in[2])) * (1.0/radius);
-        double v2in = (-buffer_in[0] - buffer_in[1] + (lxy * buffer_in[2])) * (1.0/radius);
-        double v3in = ( buffer_in[0] - buffer_in[1] + (lxy * buffer_in[2])) * (1.0/radius);
-        double v4in = (-buffer_in[0] - buffer_in[1] - (lxy * buffer_in[2])) * (1.0/radius);
+        {
+            std::scoped_lock lock(mtx_receive_);
+            v1in_ = ( buffer_in[0] - buffer_in[1] - (lxy * buffer_in[2])) * (1.0/radius);
+            v2in_ = (-buffer_in[0] - buffer_in[1] + (lxy * buffer_in[2])) * (1.0/radius);
+            v3in_ = ( buffer_in[0] - buffer_in[1] + (lxy * buffer_in[2])) * (1.0/radius);
+            v4in_ = (-buffer_in[0] - buffer_in[1] - (lxy * buffer_in[2])) * (1.0/radius);
+        }
 
 
-        this->pid_w1.setSetpoint(abs(v1in));
-        this->pid_w2.setSetpoint(abs(v2in));
-        this->pid_w3.setSetpoint(abs(v3in));
-        this->pid_w4.setSetpoint(abs(v4in));
+        this->pid_w1.setSetpoint(abs(v1in_));
+        this->pid_w2.setSetpoint(abs(v2in_));
+        this->pid_w3.setSetpoint(abs(v3in_));
+        this->pid_w4.setSetpoint(abs(v4in_));
 
         mtx_enc1.lock();
         this->vel_enc1_f = this->f_vel_1.filter(this->vel_enc1);
+        buffer_out[0] = this->vel_enc1;
         mtx_enc1.unlock();
         mtx_enc2.lock();
+        buffer_out[1] = this->vel_enc2;
         this->vel_enc2_f = this->f_vel_2.filter(this->vel_enc2);
         mtx_enc2.unlock();
         mtx_enc3.lock();
+        buffer_out[2] = this->vel_enc3;
         this->vel_enc3_f = this->f_vel_3.filter(this->vel_enc3);
         mtx_enc3.unlock();
         mtx_enc4.lock();
+        buffer_out[3] = this->vel_enc4;
         this->vel_enc4_f = this->f_vel_4.filter(this->vel_enc4);
         mtx_enc4.unlock();
         
-        int v1dir = (v1in < 0) ? HIGH : LOW;
-        int v2dir = (v2in < 0) ? LOW : HIGH;
-        int v3dir = (v3in < 0) ? LOW : HIGH;
-        int v4dir = (v4in < 0) ? HIGH : LOW;
+        int v1dir = (v1in_ < 0) ? HIGH : LOW;
+        int v2dir = (v2in_ < 0) ? LOW : HIGH;
+        int v3dir = (v3in_ < 0) ? LOW : HIGH;
+        int v4dir = (v4in_ < 0) ? HIGH : LOW;
 
         //TODO tristate assign
         digitalWrite(PWM_dir_1,v1dir);
@@ -248,15 +260,6 @@ void azrael_mobile_driver::control_thread()
         {
             std::this_thread::sleep_for(std::chrono::microseconds(micros));
         }
-
-        // #ifdef DEBUG_PID
-        // auto p1 = std::chrono::system_clock::now();
-
-        // myfile << pwm1 << "," << pwm2 << "," << pwm3 << "," << pwm4 << "," 
-        //        << this->vel_enc1   << "," << this->vel_enc2   << "," << this->vel_enc3   << "," << this->vel_enc4   << "," 
-        //     //    << this->vel_enc1_f << "," << this->vel_enc2_f << "," << this->vel_enc3_f << "," << this->vel_enc4_f << "," 
-        //        << v1in << "," << v2in << "," << v3in << "," << v4in << "," << std::chrono::duration_cast<std::chrono::microseconds>(p1.time_since_epoch()).count() << "\n";
-        // #endif
 
         init_time = end_time;
     }
@@ -295,34 +298,52 @@ void azrael_mobile_driver::odometry()
     }
 }
 
-void azrael_mobile_driver::socket_feed()
+void azrael_mobile_driver::socket_send()
+{
+    std::chrono::time_point<std::chrono::system_clock> init_time_udp = std::chrono::system_clock::now();
+
+    while(!stopping_)
+    {
+	// buffer_out[0] = this->vel_enc1;
+	// buffer_out[1] = this->vel_enc2;
+	// buffer_out[2] = this->vel_enc3;
+	// buffer_out[3] = this->vel_enc4;
+    // sendto(this->sockfd, (const void *)buffer_out, sizeof(double) * 4, MSG_WAITALL, (const struct sockaddr *) &servaddr, sizeof(servaddr)); 
+    boost::system::error_code err;
+    auto sent = socket->send_to(boost::asio::buffer(buffer_out), remote_endpoint, 0, err);
+
+    std::this_thread::sleep_for(std::chrono::microseconds(20000));
+    // auto micros = 20000 - std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now() - init_time_udp).count();
+    // if(micros > 0)
+    // {
+    //     std::this_thread::sleep_for(std::chrono::microseconds(micros));
+    // }
+    // init_time_udp = std::chrono::system_clock::now();
+    }
+}
+
+void azrael_mobile_driver::socket_receive()
 {
     int n; 
     unsigned int len;
     std::chrono::time_point<std::chrono::system_clock> init_time_udp = std::chrono::system_clock::now();
-    std::chrono::time_point<std::chrono::system_clock> end_time_udp  = std::chrono::system_clock::now();
 
     while(!stopping_)
     {
-        // std::cout << "SENDING \n";
-	buffer_out[0] = this->vel_enc1;
-	buffer_out[1] = this->vel_enc2;
-	buffer_out[2] = this->vel_enc3;
-	buffer_out[3] = this->vel_enc4;
-    sendto(this->sockfd, (const void *)buffer_out, sizeof(double) * 4, MSG_DONTWAIT, (const struct sockaddr *) &servaddr, sizeof(servaddr)); 
-    // std::cout << "rec: " << buffer_out[0] << " " << buffer_out[1] << " " << buffer_out[2] << "\n";
-    // std::cout << "RECEIVING \n";
-    n = recvfrom(this->sockfd, (void *)buffer_in, sizeof(double) * 3, MSG_DONTWAIT, (struct sockaddr *) &servaddr, &len); 
-    // std::cout << "rec: " << buffer_in[0] << " " << buffer_in[1] << " " << buffer_in[2] << "\n";
-    // std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
-    end_time_udp  = std::chrono::system_clock::now();
-    auto micros = 20000 - std::chrono::duration_cast<std::chrono::microseconds>(end_time_udp - init_time_udp).count();
-    if(micros > 0)
     {
-        std::this_thread::sleep_for(std::chrono::microseconds(micros));
+        std::scoped_lock lock(mtx_receive_);
+        // n = recvfrom(this->sockfd, (void *)buffer_in, sizeof(double) * 3, MSG_WAITALL, (struct sockaddr *) &servaddr, &len); 
+        socket->receive_from(boost::asio::buffer(buffer_in), local_endpoint);
     }
-    init_time_udp = end_time_udp;
+
+    std::this_thread::sleep_for(std::chrono::microseconds(20000));
+    // auto micros = 10000 - std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now() - init_time_udp).count();
+    // if(micros > 0)
+    // {
+    //     std::this_thread::sleep_for(std::chrono::microseconds(micros));
+    // }
+    // init_time_udp = std::chrono::system_clock::now();
     }
 }
 
@@ -359,7 +380,8 @@ int main(int argc, char **argv)
     std::cout << "Thread started .\n";
     std::thread control_t(&azrael_mobile_driver::control_thread, mobile_robot_driver);
     // std::thread    odom_t(&azrael_mobile_driver::odometry, mobile_robot_driver);
-    std::thread    sock_t(&azrael_mobile_driver::socket_feed, mobile_robot_driver);
+    std::thread    sock_t_send(&azrael_mobile_driver::socket_send, mobile_robot_driver);
+    std::thread    sock_t_receive(&azrael_mobile_driver::socket_receive, mobile_robot_driver);
 
     sched_param sch;
     int policy;
@@ -368,15 +390,19 @@ int main(int argc, char **argv)
 
     pthread_setschedparam(control_t.native_handle(), SCHED_FIFO, &sch);
     // pthread_setschedparam(odom_t.native_handle(), SCHED_RR, &sch);
-    pthread_setschedparam(sock_t.native_handle(), SCHED_FIFO, &sch);
+    pthread_setschedparam(sock_t_send.native_handle(), SCHED_FIFO, &sch);
+    pthread_setschedparam(sock_t_receive.native_handle(), SCHED_FIFO, &sch);
     
 
 
-    std::cout << "Thread joined.\n";
+
 
     control_t.join();
     // odom_t.join();
-    sock_t.join();
+    sock_t_receive.join();
+    sock_t_send.join();
+
+    std::cout << "Thread joined.\n";
 
     return 0;
 }

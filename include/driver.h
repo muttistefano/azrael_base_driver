@@ -32,8 +32,21 @@
 #include "random"
 #include "time.h"
 
+#include <ctime>
+#include <iostream>
+#include <string>
+#include <boost/array.hpp>
+#include <boost/asio.hpp>
+
+using boost::asio::ip::udp;
+using boost::asio::ip::address;
+
 std::ofstream myfile;
-  
+
+#define IPADDRESS_REMOTE "192.169.1.2"
+#define IPADDRESS_LOCAL "192.169.1.1"
+#define UDP_PORT 44100
+
 // #define DEBUG_PID
 
 std::mutex mtx_enc1, mtx_enc2, mtx_enc3, mtx_enc4 ; 
@@ -92,12 +105,23 @@ class azrael_mobile_driver
     PhidgetEncoderHandle encoder2;
     PhidgetEncoderHandle encoder3;
 
+    double v1in_ = 0.0;
+    double v2in_ = 0.0;
+    double v3in_ = 0.0;
+    double v4in_ = 0.0;
+
     //Socket
-    int sockfd; 
+    // int sockfd; 
     double buffer_in[3] = {0.0,0.0,0.0}; 
     double buffer_out[4] = {0.0,0.0,0.0,0.0}; 
-    struct sockaddr_in     servaddr; 
+    // struct sockaddr_in     servaddr; 
+    std::mutex mtx_receive_;
     
+    boost::asio::io_context io_context;
+   
+    udp::socket * socket;
+    udp::endpoint remote_endpoint;
+    udp::endpoint local_endpoint;
 
 
 public:
@@ -109,7 +133,8 @@ public:
     void setWheelsSpeed();
     void control_thread();
     void odometry();
-    void socket_feed();
+    void socket_send();
+    void socket_receive();
 
     //   void safety_task();
 
